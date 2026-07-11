@@ -1,5 +1,23 @@
 const STORAGE_KEY = 'altin-takip-v2';
 
+// Cloudflare Worker: günde 1 kez altinapi.com'dan çekilip KV'de önbelleklenen fiyat.
+// Deploy sonrası bunu gerçek worker URL'i (workers.dev ya da custom route) ile değiştirin.
+const PRICE_API_URL = 'https://altin-price-cache.soner-acar.workers.dev';
+
+async function fetchDailyPrices() {
+  try {
+    const res = await fetch(PRICE_API_URL);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.gram24?.bid) state.gramPrice = String(data.gram24.bid);
+    if (data.gram22?.bid) state.gramPrice22 = String(data.gram22.bid);
+    save();
+    render();
+  } catch (e) {
+    // Worker'a ulaşılamazsa mevcut/manuel girilen fiyatlarla devam edilir
+  }
+}
+
 const TYPE_DEFS = [
   { key: 'gram', name: 'Gram Altın', sub: '24 ayar · 1 gr', karat: 24, weight: 1 },
   { key: 'ceyrek', name: 'Çeyrek Altın', sub: '22 ayar · 1,75 gr', karat: 22, weight: 1.75 },
@@ -625,6 +643,7 @@ decryptImportBtn.addEventListener('click', async () => {
 });
 
 render();
+fetchDailyPrices();
 
 // PWA: offline caching
 if ('serviceWorker' in navigator) {

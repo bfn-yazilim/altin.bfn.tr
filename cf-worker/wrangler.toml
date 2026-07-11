@@ -1,0 +1,11 @@
+name = "altin-price-cache"
+main = "src/index.js"
+compatibility_date = "2026-07-11"
+
+kv_namespaces = [
+  { binding = "PRICES", id = "6b666c8fbe164ef8a6fdaab8cae468b4" }
+]
+
+[triggers]
+# Her gün TR saatiyle 06:30'da (UTC 03:30) çalışır
+crons = ["30 3 * * *"]
