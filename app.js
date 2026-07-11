@@ -166,6 +166,7 @@ function render() {
   // Entries
   let total = 0;
   let totalBuy = 0;
+  let totalWithBuyPrice = 0;
   entriesList.innerHTML = '';
 
   state.entries.forEach((e, i) => {
@@ -174,7 +175,10 @@ function render() {
     const amount = count * d.mult * price;
     const buy = num(e.buyPrice);
     total += amount;
-    totalBuy += buy;
+    if (buy > 0) {
+      totalBuy += buy;
+      totalWithBuyPrice += amount;
+    }
     const diff = amount - buy;
     const hasDiff = buy > 0 && amount > 0;
 
@@ -235,8 +239,8 @@ function render() {
 
   emptyState.hidden = state.entries.length > 0;
 
-  const totalDiff = total - totalBuy;
-  const hasTotalDiff = totalBuy > 0 && total > 0;
+  const totalDiff = totalWithBuyPrice - totalBuy;
+  const hasTotalDiff = totalBuy > 0;
 
   totalAmountEl.textContent = fmtCurrency(total);
   if (hasTotalDiff) {
