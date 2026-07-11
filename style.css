@@ -361,6 +361,40 @@ button {
   font-variant-numeric: tabular-nums;
 }
 
+.entry-group-header {
+  cursor: pointer;
+}
+.entry-group-header:hover {
+  background: #FAF7EA;
+}
+
+.entry-chevron {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #B5AB97;
+  font-size: 18px;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.entry-group-header.expanded .entry-chevron {
+  transform: rotate(90deg);
+  color: #A07C22;
+}
+
+.entry-row--child {
+  padding-left: 32px;
+  background: #FBF9F1;
+}
+
+.entry-row--child .entry-sub {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6E6650;
+}
+
 .btn-remove {
   width: 26px;
   height: 26px;

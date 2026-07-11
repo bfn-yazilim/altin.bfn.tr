@@ -136,6 +136,8 @@ const totalAmountEl = document.getElementById('totalAmount');
 const totalDiffEl = document.getElementById('totalDiff');
 const totalBuyTextEl = document.getElementById('totalBuyText');
 
+const expandedGroups = new Set();
+
 const openAddBtn = document.getElementById('openAddBtn');
 const closeAddBtn = document.getElementById('closeAddBtn');
 const addOverlay = document.getElementById('addOverlay');
@@ -177,37 +179,7 @@ function render() {
   let totalWithBuyPrice = 0;
   entriesList.innerHTML = '';
 
-  state.entries.forEach((e, i) => {
-    const d = byKey[e.type] || TYPE_DEFS[0];
-    const count = num(e.count);
-    const amount = count * d.weight * unitPriceFor(d, price24, price22);
-    const buy = num(e.buyPrice);
-    total += amount;
-    if (buy > 0) {
-      totalBuy += buy;
-      totalWithBuyPrice += amount;
-    }
-    const diff = amount - buy;
-    const hasDiff = buy > 0 && amount > 0;
-
-    const row = document.createElement('div');
-    row.className = 'entry-row';
-
-    const nameCol = document.createElement('div');
-    nameCol.className = 'entry-name-col';
-    const nameEl = document.createElement('div');
-    nameEl.className = 'entry-name';
-    nameEl.textContent = d.name;
-    const subEl = document.createElement('div');
-    subEl.className = 'entry-sub';
-    subEl.textContent = e.date ? `${d.sub} · ${fmtDate(e.date)}` : d.sub;
-    nameCol.appendChild(nameEl);
-    nameCol.appendChild(subEl);
-
-    const countEl = document.createElement('div');
-    countEl.className = 'entry-count';
-    countEl.textContent = fmtCount(count);
-
+  function buildAmountCol(amount, diff, buy, hasDiff) {
     const amountCol = document.createElement('div');
     amountCol.className = 'entry-amount-col';
     const amountEl = document.createElement('div');
@@ -227,22 +199,173 @@ function render() {
       buyEl.textContent = `Alış ${fmtCurrency(buy)}`;
       amountCol.appendChild(buyEl);
     }
+    return amountCol;
+  }
 
-    const removeBtn = document.createElement('button');
-    removeBtn.className = 'btn-remove';
-    removeBtn.title = 'Sil';
-    removeBtn.textContent = '×';
-    removeBtn.addEventListener('click', () => {
-      state.entries.splice(i, 1);
-      save();
+  const groups = {};
+  state.entries.forEach((e, i) => {
+    const key = byKey[e.type] ? e.type : TYPE_DEFS[0].key;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push({ entry: e, index: i });
+  });
+
+  TYPE_DEFS.forEach((d) => {
+    const items = groups[d.key];
+    if (!items) return;
+
+    if (items.length === 1) {
+      const { entry: e, index: i } = items[0];
+      const count = num(e.count);
+      const amount = count * d.weight * unitPriceFor(d, price24, price22);
+      const buy = num(e.buyPrice);
+      total += amount;
+      if (buy > 0) {
+        totalBuy += buy;
+        totalWithBuyPrice += amount;
+      }
+      const diff = amount - buy;
+      const hasDiff = buy > 0 && amount > 0;
+
+      const row = document.createElement('div');
+      row.className = 'entry-row';
+
+      const nameCol = document.createElement('div');
+      nameCol.className = 'entry-name-col';
+      const nameEl = document.createElement('div');
+      nameEl.className = 'entry-name';
+      nameEl.textContent = d.name;
+      const subEl = document.createElement('div');
+      subEl.className = 'entry-sub';
+      subEl.textContent = e.date ? `${d.sub} · ${fmtDate(e.date)}` : d.sub;
+      nameCol.appendChild(nameEl);
+      nameCol.appendChild(subEl);
+
+      const countEl = document.createElement('div');
+      countEl.className = 'entry-count';
+      countEl.textContent = fmtCount(count);
+
+      const amountCol = buildAmountCol(amount, diff, buy, hasDiff);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'btn-remove';
+      removeBtn.title = 'Sil';
+      removeBtn.textContent = '×';
+      removeBtn.addEventListener('click', () => {
+        state.entries.splice(i, 1);
+        save();
+        render();
+      });
+
+      row.appendChild(nameCol);
+      row.appendChild(countEl);
+      row.appendChild(amountCol);
+      row.appendChild(removeBtn);
+      entriesList.appendChild(row);
+      return;
+    }
+
+    // Multiple entries of the same type: show a collapsible group.
+    let groupCount = 0;
+    let groupAmount = 0;
+    let groupBuy = 0;
+    let groupWithBuy = 0;
+    items.forEach(({ entry: e }) => {
+      const count = num(e.count);
+      const amount = count * d.weight * unitPriceFor(d, price24, price22);
+      const buy = num(e.buyPrice);
+      groupCount += count;
+      groupAmount += amount;
+      total += amount;
+      if (buy > 0) {
+        groupBuy += buy;
+        groupWithBuy += amount;
+        totalBuy += buy;
+        totalWithBuyPrice += amount;
+      }
+    });
+    const groupDiff = groupWithBuy - groupBuy;
+    const groupHasDiff = groupBuy > 0 && groupAmount > 0;
+    const isExpanded = expandedGroups.has(d.key);
+
+    const header = document.createElement('div');
+    header.className = 'entry-row entry-group-header' + (isExpanded ? ' expanded' : '');
+
+    const nameCol = document.createElement('div');
+    nameCol.className = 'entry-name-col';
+    const nameEl = document.createElement('div');
+    nameEl.className = 'entry-name';
+    nameEl.textContent = d.name;
+    const subEl = document.createElement('div');
+    subEl.className = 'entry-sub';
+    subEl.textContent = `${items.length} giriş · ${d.sub}`;
+    nameCol.appendChild(nameEl);
+    nameCol.appendChild(subEl);
+
+    const countEl = document.createElement('div');
+    countEl.className = 'entry-count';
+    countEl.textContent = fmtCount(groupCount);
+
+    const amountCol = buildAmountCol(groupAmount, groupDiff, groupBuy, groupHasDiff);
+
+    const chevron = document.createElement('div');
+    chevron.className = 'entry-chevron';
+    chevron.textContent = '›';
+
+    header.appendChild(nameCol);
+    header.appendChild(countEl);
+    header.appendChild(amountCol);
+    header.appendChild(chevron);
+    header.addEventListener('click', () => {
+      if (expandedGroups.has(d.key)) {
+        expandedGroups.delete(d.key);
+      } else {
+        expandedGroups.add(d.key);
+      }
       render();
     });
+    entriesList.appendChild(header);
 
-    row.appendChild(nameCol);
-    row.appendChild(countEl);
-    row.appendChild(amountCol);
-    row.appendChild(removeBtn);
-    entriesList.appendChild(row);
+    if (isExpanded) {
+      items.forEach(({ entry: e, index: i }) => {
+        const count = num(e.count);
+        const amount = count * d.weight * unitPriceFor(d, price24, price22);
+        const buy = num(e.buyPrice);
+        const diff = amount - buy;
+        const hasDiff = buy > 0 && amount > 0;
+
+        const row = document.createElement('div');
+        row.className = 'entry-row entry-row--child';
+
+        const childNameCol = document.createElement('div');
+        childNameCol.className = 'entry-name-col';
+        const childSubEl = document.createElement('div');
+        childSubEl.className = 'entry-sub';
+        childSubEl.textContent = e.date ? fmtDate(e.date) : d.sub;
+        childNameCol.appendChild(childSubEl);
+
+        const childCountEl = document.createElement('div');
+        childCountEl.className = 'entry-count';
+        childCountEl.textContent = fmtCount(count);
+
+        const childAmountCol = buildAmountCol(amount, diff, buy, hasDiff);
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'btn-remove';
+        removeBtn.title = 'Sil';
+        removeBtn.textContent = '×';
+        removeBtn.addEventListener('click', () => {
+          state.entries.splice(i, 1);
+          save();
+          render();
+        });
+
+        row.appendChild(childNameCol);
+        row.appendChild(childCountEl);
+        row.appendChild(childAmountCol);
+        row.appendChild(removeBtn);
+        entriesList.appendChild(row);
+      });
+    }
   });
 
   emptyState.hidden = state.entries.length > 0;
