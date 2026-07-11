@@ -115,7 +115,6 @@
       <button id="exportBtn" class="btn-link">Verileri Dışa Aktar</button>
       <span class="data-actions-sep">·</span>
       <button id="importBtn" class="btn-link">Verileri İçe Aktar</button>
-      <input type="file" id="importFileInput" accept="application/json" hidden>
     </div>
 
   </div>
@@ -155,6 +154,56 @@
       </div>
 
       <button id="confirmAddBtn" class="btn-confirm">Ekle</button>
+    </div>
+  </div>
+
+  <!-- Export sheet -->
+  <div id="exportOverlay" class="overlay" hidden>
+    <div class="sheet">
+      <div class="sheet-head">
+        <div class="sheet-title">Verileri Dışa Aktar</div>
+        <button id="closeExportBtn" class="btn-close">×</button>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">ŞİFRE</div>
+        <input type="password" id="exportPasswordInput" placeholder="Bir şifre belirleyin" class="input-strong input-left">
+        <div class="hint-text">Bu şifreyi unutmayın — içe aktarırken tekrar gerekecek.</div>
+      </div>
+
+      <div id="exportError" class="error-text" hidden></div>
+
+      <button id="generateExportBtn" class="btn-confirm">Şifrele ve Oluştur</button>
+
+      <div id="exportResult" class="field-group" hidden>
+        <div class="field-label">ŞİFRELİ METİN</div>
+        <textarea id="exportOutput" class="textarea-mono" rows="6" readonly></textarea>
+        <button id="copyExportBtn" class="btn-secondary">Kopyala</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import sheet -->
+  <div id="importOverlay" class="overlay" hidden>
+    <div class="sheet">
+      <div class="sheet-head">
+        <div class="sheet-title">Verileri İçe Aktar</div>
+        <button id="closeImportBtn" class="btn-close">×</button>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">ŞİFRELİ METİN</div>
+        <textarea id="importTextArea" class="textarea-mono" rows="6" placeholder="Şifreli metni buraya yapıştırın"></textarea>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">ŞİFRE</div>
+        <input type="password" id="importPasswordInput" placeholder="Şifreyi girin" class="input-strong input-left">
+      </div>
+
+      <div id="importError" class="error-text" hidden></div>
+
+      <button id="decryptImportBtn" class="btn-confirm">Çöz ve İçe Aktar</button>
     </div>
   </div>
 

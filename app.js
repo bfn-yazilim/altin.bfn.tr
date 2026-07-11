@@ -11,6 +11,58 @@ const TYPE_DEFS = [
 
 const byKey = Object.fromEntries(TYPE_DEFS.map((d) => [d.key, d]));
 
+// Backup encryption (AES-GCM + PBKDF2, Web Crypto API)
+const PBKDF2_ITERATIONS = 150000;
+
+function bufToBase64(buf) {
+  let binary = '';
+  const bytes = new Uint8Array(buf);
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+function base64ToBytes(base64) {
+  const binary = atob(base64.trim());
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function deriveKey(password, salt) {
+  const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, [
+    'deriveKey',
+  ]);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function encryptText(plainText, password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(password, salt);
+  const cipherBuf = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(plainText));
+  const combined = new Uint8Array(salt.length + iv.length + cipherBuf.byteLength);
+  combined.set(salt, 0);
+  combined.set(iv, salt.length);
+  combined.set(new Uint8Array(cipherBuf), salt.length + iv.length);
+  return bufToBase64(combined);
+}
+
+async function decryptText(cipherTextB64, password) {
+  const combined = base64ToBytes(cipherTextB64);
+  const salt = combined.slice(0, 16);
+  const iv = combined.slice(16, 28);
+  const data = combined.slice(28);
+  const key = await deriveKey(password, salt);
+  const plainBuf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+  return new TextDecoder().decode(plainBuf);
+}
+
 function loadState() {
   let saved = {};
   try {
@@ -31,6 +83,14 @@ const state = {
   addCount: '',
   addDate: '',
   addBuy: '',
+  exportOpen: false,
+  exportPassword: '',
+  exportOutput: '',
+  exportError: '',
+  importOpen: false,
+  importText: '',
+  importPassword: '',
+  importError: '',
 };
 
 function save() {
@@ -82,7 +142,22 @@ const confirmAddBtn = document.getElementById('confirmAddBtn');
 
 const exportBtn = document.getElementById('exportBtn');
 const importBtn = document.getElementById('importBtn');
-const importFileInput = document.getElementById('importFileInput');
+
+const exportOverlay = document.getElementById('exportOverlay');
+const closeExportBtn = document.getElementById('closeExportBtn');
+const exportPasswordInput = document.getElementById('exportPasswordInput');
+const exportErrorEl = document.getElementById('exportError');
+const generateExportBtn = document.getElementById('generateExportBtn');
+const exportResultEl = document.getElementById('exportResult');
+const exportOutputEl = document.getElementById('exportOutput');
+const copyExportBtn = document.getElementById('copyExportBtn');
+
+const importOverlay = document.getElementById('importOverlay');
+const closeImportBtn = document.getElementById('closeImportBtn');
+const importTextArea = document.getElementById('importTextArea');
+const importPasswordInput = document.getElementById('importPasswordInput');
+const importErrorEl = document.getElementById('importError');
+const decryptImportBtn = document.getElementById('decryptImportBtn');
 
 function render() {
   const price = num(state.gramPrice);
@@ -200,6 +275,21 @@ function render() {
   const addDef = byKey[state.addType] || TYPE_DEFS[0];
   const addAmount = num(state.addCount) * addDef.mult * price;
   addPreviewEl.textContent = addAmount > 0 ? fmtCurrency(addAmount) : '—';
+
+  // Export sheet
+  exportOverlay.hidden = !state.exportOpen;
+  exportPasswordInput.value = state.exportPassword;
+  exportErrorEl.hidden = !state.exportError;
+  exportErrorEl.textContent = state.exportError;
+  exportResultEl.hidden = !state.exportOutput;
+  exportOutputEl.value = state.exportOutput;
+
+  // Import sheet
+  importOverlay.hidden = !state.importOpen;
+  importTextArea.value = state.importText;
+  importPasswordInput.value = state.importPassword;
+  importErrorEl.hidden = !state.importError;
+  importErrorEl.textContent = state.importError;
 }
 
 // Event bindings
@@ -259,58 +349,136 @@ confirmAddBtn.addEventListener('click', () => {
 
 // Backup / restore
 exportBtn.addEventListener('click', () => {
-  const payload = {
-    app: 'altin-takip',
-    version: 2,
-    exportedAt: new Date().toISOString(),
-    gramPrice: state.gramPrice,
-    entries: state.entries,
-  };
-  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const stamp = new Date().toISOString().slice(0, 10);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `altin-takip-yedek-${stamp}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+  state.exportOpen = true;
+  state.exportPassword = '';
+  state.exportOutput = '';
+  state.exportError = '';
+  render();
+});
+
+closeExportBtn.addEventListener('click', () => {
+  state.exportOpen = false;
+  render();
+});
+
+exportOverlay.addEventListener('click', (e) => {
+  if (e.target === exportOverlay) {
+    state.exportOpen = false;
+    render();
+  }
+});
+
+exportPasswordInput.addEventListener('input', (e) => {
+  state.exportPassword = e.target.value;
+  render();
+});
+
+generateExportBtn.addEventListener('click', async () => {
+  if (!state.exportPassword) {
+    state.exportError = 'Lütfen bir şifre girin.';
+    state.exportOutput = '';
+    render();
+    return;
+  }
+  try {
+    const payload = JSON.stringify({
+      app: 'altin-takip',
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      gramPrice: state.gramPrice,
+      entries: state.entries,
+    });
+    state.exportOutput = await encryptText(payload, state.exportPassword);
+    state.exportError = '';
+  } catch (e) {
+    state.exportOutput = '';
+    state.exportError = 'Şifreleme sırasında bir hata oluştu.';
+  }
+  render();
+});
+
+copyExportBtn.addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(exportOutputEl.value);
+    copyExportBtn.textContent = 'Kopyalandı ✓';
+  } catch (e) {
+    exportOutputEl.select();
+    copyExportBtn.textContent = 'Seçildi, Ctrl+C ile kopyalayın';
+  }
+  setTimeout(() => {
+    copyExportBtn.textContent = 'Kopyala';
+  }, 1800);
 });
 
 importBtn.addEventListener('click', () => {
-  importFileInput.value = '';
-  importFileInput.click();
+  state.importOpen = true;
+  state.importText = '';
+  state.importPassword = '';
+  state.importError = '';
+  render();
 });
 
-importFileInput.addEventListener('change', () => {
-  const file = importFileInput.files[0];
-  if (!file) return;
+closeImportBtn.addEventListener('click', () => {
+  state.importOpen = false;
+  render();
+});
 
-  const reader = new FileReader();
-  reader.onload = () => {
-    let data;
-    try {
-      data = JSON.parse(reader.result);
-    } catch (e) {
-      alert('Dosya okunamadı: Geçerli bir JSON yedek dosyası değil.');
-      return;
-    }
-    if (!data || !Array.isArray(data.entries)) {
-      alert('Geçersiz yedek dosyası: beklenen veri yapısı bulunamadı.');
-      return;
-    }
-    const proceed = confirm('Mevcut veriler, seçilen yedek dosyasındaki veriler ile değiştirilecek. Devam edilsin mi?');
-    if (!proceed) return;
-
-    state.gramPrice = data.gramPrice ?? '';
-    state.entries = data.entries;
-    state.addOpen = false;
-    save();
+importOverlay.addEventListener('click', (e) => {
+  if (e.target === importOverlay) {
+    state.importOpen = false;
     render();
-    alert('Yedek başarıyla içe aktarıldı.');
-  };
-  reader.readAsText(file);
+  }
+});
+
+importTextArea.addEventListener('input', (e) => {
+  state.importText = e.target.value;
+  render();
+});
+
+importPasswordInput.addEventListener('input', (e) => {
+  state.importPassword = e.target.value;
+  render();
+});
+
+decryptImportBtn.addEventListener('click', async () => {
+  if (!state.importText.trim()) {
+    state.importError = 'Lütfen şifreli metni yapıştırın.';
+    render();
+    return;
+  }
+  if (!state.importPassword) {
+    state.importError = 'Lütfen şifreyi girin.';
+    render();
+    return;
+  }
+
+  let data;
+  try {
+    const plainText = await decryptText(state.importText.trim(), state.importPassword);
+    data = JSON.parse(plainText);
+  } catch (e) {
+    state.importError = 'Çözümleme başarısız: yanlış şifre ya da geçersiz metin.';
+    render();
+    return;
+  }
+  if (!data || !Array.isArray(data.entries)) {
+    state.importError = 'Geçersiz yedek: beklenen veri yapısı bulunamadı.';
+    render();
+    return;
+  }
+
+  const proceed = confirm('Mevcut veriler, içe aktarılan yedek ile değiştirilecek. Devam edilsin mi?');
+  if (!proceed) return;
+
+  state.gramPrice = data.gramPrice ?? '';
+  state.entries = data.entries;
+  state.importOpen = false;
+  state.importText = '';
+  state.importPassword = '';
+  state.importError = '';
+  save();
+  render();
+  alert('Yedek başarıyla içe aktarıldı.');
 });
 
 render();
