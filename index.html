@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Altın Takip - Gram Altın Fiyatına Göre Varlık Takibi</title>
+<meta name="description" content="Gram altın fiyatını girin; çeyrek, yarım, tam, Cumhuriyet altını ve bileziklerinizin güncel Türk Lirası değerini ve kâr/zararını anında hesaplayın.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://altin.bfn.tr/">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://altin.bfn.tr/">
+<meta property="og:title" content="Altın Takip - Gram Altın Fiyatına Göre Varlık Takibi">
+<meta property="og:description" content="Gram altın fiyatını girin; çeyrek, yarım, tam, Cumhuriyet altını ve bileziklerinizin güncel Türk Lirası değerini ve kâr/zararını anında hesaplayın.">
+<meta property="og:image" content="https://altin.bfn.tr/images/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="tr_TR">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Altın Takip - Gram Altın Fiyatına Göre Varlık Takibi">
+<meta name="twitter:description" content="Gram altın fiyatını girin; altın varlıklarınızın güncel Türk Lirası değerini anında hesaplayın.">
+<meta name="twitter:image" content="https://altin.bfn.tr/images/og-image.png">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Altın Takip",
+  "url": "https://altin.bfn.tr/",
+  "description": "Gram altın fiyatını girin; altın varlıklarınızın güncel Türk Lirası değerini ve kâr/zararını anında hesaplayın.",
+  "applicationCategory": "FinanceApplication",
+  "operatingSystem": "Any",
+  "inLanguage": "tr",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "TRY"
+  }
+}
+</script>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2B2415">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Altın Takip">
+<meta name="mobile-web-app-capable" content="yes">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Spectral:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="page">
+  <div class="container">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="header-text">
+        <h1 class="title">Altın Varlıklarım</h1>
+        <div class="subtitle">Gram altın fiyatını girin, toplam değeriniz hesaplansın</div>
+      </div>
+      <div class="header-actions">
+        <button id="installBtn" class="btn-install" hidden>Yükle</button>
+        <button id="openAddBtn" class="btn-add">
+          <span class="btn-add-icon">+</span> Ekle
+        </button>
+      </div>
+    </div>
+
+    <!-- Gram price input -->
+    <div class="card price-card">
+      <div class="price-label">
+        <div class="price-label-title">GRAM ALTIN FİYATI</div>
+        <div class="price-label-sub">Güncel satış fiyatı (₺/gr)</div>
+      </div>
+      <div class="price-input-wrap">
+        <span class="price-currency">₺</span>
+        <input type="number" inputmode="decimal" id="gramPriceInput" placeholder="0">
+      </div>
+    </div>
+
+    <!-- Entries -->
+    <div class="card entries-card">
+      <div class="entries-head">
+        <div>Varlık</div>
+        <div class="text-right">Adet</div>
+        <div class="text-right">Tutar</div>
+        <div></div>
+      </div>
+      <div id="entriesList"></div>
+      <div id="emptyState" class="empty-state" hidden>
+        <div class="empty-title">Henüz varlık eklenmedi</div>
+        <div class="empty-sub">Sağ üstteki "Ekle" ile altınlarınızı girin</div>
+      </div>
+    </div>
+
+    <!-- Total -->
+    <div class="total-card">
+      <div class="total-left">
+        <div class="total-label">TOPLAM TUTAR</div>
+        <div id="totalBuyText" class="total-buy" hidden></div>
+      </div>
+      <div class="total-right">
+        <div id="totalAmount" class="total-amount">₺0</div>
+        <div id="totalDiff" class="total-diff" hidden></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Add sheet -->
+  <div id="addOverlay" class="overlay" hidden>
+    <div class="sheet">
+      <div class="sheet-head">
+        <div class="sheet-title">Varlık Ekle</div>
+        <button id="closeAddBtn" class="btn-close">×</button>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">ALTIN TİPİ</div>
+        <div id="typeOptions" class="type-grid"></div>
+      </div>
+
+      <div class="two-col">
+        <div class="field-group">
+          <div class="field-label">ADET</div>
+          <input type="number" inputmode="decimal" id="addCountInput" placeholder="0" class="input-strong">
+        </div>
+        <div class="field-group">
+          <div class="field-label">TARİH</div>
+          <input type="date" id="addDateInput" class="input-date">
+        </div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">ALIŞ TUTARI (₺)</div>
+        <input type="number" inputmode="decimal" id="addBuyInput" placeholder="0" class="input-strong">
+      </div>
+
+      <div class="preview-row">
+        <div class="preview-label">Tahmini tutar</div>
+        <div id="addPreview" class="preview-value">₺0</div>
+      </div>
+
+      <button id="confirmAddBtn" class="btn-confirm">Ekle</button>
+    </div>
+  </div>
+
+</main>
+<script src="app.js"></script>
+</body>
+</html>
