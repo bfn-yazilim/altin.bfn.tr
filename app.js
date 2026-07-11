@@ -80,6 +80,10 @@ const addBuyInput = document.getElementById('addBuyInput');
 const addPreviewEl = document.getElementById('addPreview');
 const confirmAddBtn = document.getElementById('confirmAddBtn');
 
+const exportBtn = document.getElementById('exportBtn');
+const importBtn = document.getElementById('importBtn');
+const importFileInput = document.getElementById('importFileInput');
+
 function render() {
   const price = num(state.gramPrice);
   gramPriceInput.value = state.gramPrice;
@@ -251,6 +255,62 @@ confirmAddBtn.addEventListener('click', () => {
   state.addOpen = false;
   save();
   render();
+});
+
+// Backup / restore
+exportBtn.addEventListener('click', () => {
+  const payload = {
+    app: 'altin-takip',
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    gramPrice: state.gramPrice,
+    entries: state.entries,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const stamp = new Date().toISOString().slice(0, 10);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `altin-takip-yedek-${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+importBtn.addEventListener('click', () => {
+  importFileInput.value = '';
+  importFileInput.click();
+});
+
+importFileInput.addEventListener('change', () => {
+  const file = importFileInput.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    let data;
+    try {
+      data = JSON.parse(reader.result);
+    } catch (e) {
+      alert('Dosya okunamadı: Geçerli bir JSON yedek dosyası değil.');
+      return;
+    }
+    if (!data || !Array.isArray(data.entries)) {
+      alert('Geçersiz yedek dosyası: beklenen veri yapısı bulunamadı.');
+      return;
+    }
+    const proceed = confirm('Mevcut veriler, seçilen yedek dosyasındaki veriler ile değiştirilecek. Devam edilsin mi?');
+    if (!proceed) return;
+
+    state.gramPrice = data.gramPrice ?? '';
+    state.entries = data.entries;
+    state.addOpen = false;
+    save();
+    render();
+    alert('Yedek başarıyla içe aktarıldı.');
+  };
+  reader.readAsText(file);
 });
 
 render();

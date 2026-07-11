@@ -127,6 +127,34 @@ button {
   display: none;
 }
 
+/* Backup / restore */
+.data-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 2px 4px 0;
+}
+
+.data-actions-sep {
+  color: #C9BB9C;
+  font-size: 12px;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  padding: 6px 4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #A07C22;
+  cursor: pointer;
+}
+.btn-link:hover {
+  color: #7E5F14;
+  text-decoration: underline;
+}
+
 .btn-add-icon {
   font-size: 17px;
   line-height: 1;
