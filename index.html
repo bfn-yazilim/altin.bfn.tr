@@ -61,7 +61,7 @@
     <div class="header">
       <div class="header-text">
         <h1 class="title">Altın Varlıklarım</h1>
-        <div class="subtitle">Gram altın fiyatını girin, toplam değeriniz hesaplansın</div>
+        <div class="subtitle">Gram altın fiyatlarını girin, toplam değeriniz hesaplansın</div>
       </div>
       <div class="header-actions">
         <button id="installBtn" class="btn-install" hidden>Yükle</button>
@@ -71,15 +71,27 @@
       </div>
     </div>
 
-    <!-- Gram price input -->
+    <!-- Gram price inputs -->
     <div class="card price-card">
-      <div class="price-label">
-        <div class="price-label-title">GRAM ALTIN FİYATI</div>
-        <div class="price-label-sub">Güncel satış fiyatı (₺/gr)</div>
+      <div class="price-row">
+        <div class="price-label">
+          <div class="price-label-title">24 AYAR GRAM ALTIN FİYATI</div>
+          <div class="price-label-sub">Saf gram altın satış fiyatı (₺/gr)</div>
+        </div>
+        <div class="price-input-wrap">
+          <span class="price-currency">₺</span>
+          <input type="number" inputmode="decimal" id="gramPriceInput" placeholder="0" class="price-input">
+        </div>
       </div>
-      <div class="price-input-wrap">
-        <span class="price-currency">₺</span>
-        <input type="number" inputmode="decimal" id="gramPriceInput" placeholder="0">
+      <div class="price-row">
+        <div class="price-label">
+          <div class="price-label-title">22 AYAR GRAM ALTIN FİYATI</div>
+          <div class="price-label-sub">Çeyrek, yarım, tam, cumhuriyet, bilezik (₺/gr)</div>
+        </div>
+        <div class="price-input-wrap">
+          <span class="price-currency">₺</span>
+          <input type="number" inputmode="decimal" id="gramPrice22Input" placeholder="0" class="price-input">
+        </div>
       </div>
     </div>
 

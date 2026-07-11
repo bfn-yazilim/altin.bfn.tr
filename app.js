@@ -1,13 +1,17 @@
 const STORAGE_KEY = 'altin-takip-v2';
 
 const TYPE_DEFS = [
-  { key: 'gram', name: 'Gram Altın', sub: '24 ayar · 1 gr', mult: 1 },
-  { key: 'ceyrek', name: 'Çeyrek Altın', sub: '22 ayar · 1,75 gr', mult: 1.6045 },
-  { key: 'yarim', name: 'Yarım Altın', sub: '22 ayar · 3,50 gr', mult: 3.209 },
-  { key: 'tam', name: 'Tam Altın', sub: '22 ayar · 7,00 gr', mult: 6.418 },
-  { key: 'cumhuriyet', name: 'Cumhuriyet Altını', sub: '22 ayar · 7,216 gr', mult: 6.6146 },
-  { key: 'ajdar', name: 'Ajda Bilezik', sub: '22 ayar · 10 gr', mult: 9.167 },
+  { key: 'gram', name: 'Gram Altın', sub: '24 ayar · 1 gr', karat: 24, weight: 1 },
+  { key: 'ceyrek', name: 'Çeyrek Altın', sub: '22 ayar · 1,75 gr', karat: 22, weight: 1.75 },
+  { key: 'yarim', name: 'Yarım Altın', sub: '22 ayar · 3,50 gr', karat: 22, weight: 3.5 },
+  { key: 'tam', name: 'Tam Altın', sub: '22 ayar · 7,00 gr', karat: 22, weight: 7 },
+  { key: 'cumhuriyet', name: 'Cumhuriyet Altını', sub: '22 ayar · 7,216 gr', karat: 22, weight: 7.216 },
+  { key: 'ajdar', name: 'Ajda Bilezik', sub: '22 ayar · 10 gr', karat: 22, weight: 10 },
 ];
+
+function unitPriceFor(def, price24, price22) {
+  return def.karat === 22 ? price22 : price24;
+}
 
 const byKey = Object.fromEntries(TYPE_DEFS.map((d) => [d.key, d]));
 
@@ -72,6 +76,7 @@ function loadState() {
   }
   return {
     gramPrice: saved.gramPrice ?? '',
+    gramPrice22: saved.gramPrice22 ?? '',
     entries: saved.entries ?? [],
   };
 }
@@ -97,7 +102,7 @@ function save() {
   try {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ gramPrice: state.gramPrice, entries: state.entries })
+      JSON.stringify({ gramPrice: state.gramPrice, gramPrice22: state.gramPrice22, entries: state.entries })
     );
   } catch (e) {
     /* ignore storage errors */
@@ -124,6 +129,7 @@ function fmtDate(iso) {
 
 // DOM refs
 const gramPriceInput = document.getElementById('gramPriceInput');
+const gramPrice22Input = document.getElementById('gramPrice22Input');
 const entriesList = document.getElementById('entriesList');
 const emptyState = document.getElementById('emptyState');
 const totalAmountEl = document.getElementById('totalAmount');
@@ -160,8 +166,10 @@ const importErrorEl = document.getElementById('importError');
 const decryptImportBtn = document.getElementById('decryptImportBtn');
 
 function render() {
-  const price = num(state.gramPrice);
+  const price24 = num(state.gramPrice);
+  const price22 = num(state.gramPrice22);
   gramPriceInput.value = state.gramPrice;
+  gramPrice22Input.value = state.gramPrice22;
 
   // Entries
   let total = 0;
@@ -172,7 +180,7 @@ function render() {
   state.entries.forEach((e, i) => {
     const d = byKey[e.type] || TYPE_DEFS[0];
     const count = num(e.count);
-    const amount = count * d.mult * price;
+    const amount = count * d.weight * unitPriceFor(d, price24, price22);
     const buy = num(e.buyPrice);
     total += amount;
     if (buy > 0) {
@@ -277,7 +285,7 @@ function render() {
   });
 
   const addDef = byKey[state.addType] || TYPE_DEFS[0];
-  const addAmount = num(state.addCount) * addDef.mult * price;
+  const addAmount = num(state.addCount) * addDef.weight * unitPriceFor(addDef, price24, price22);
   addPreviewEl.textContent = addAmount > 0 ? fmtCurrency(addAmount) : '—';
 
   // Export sheet
@@ -299,6 +307,12 @@ function render() {
 // Event bindings
 gramPriceInput.addEventListener('input', (e) => {
   state.gramPrice = e.target.value;
+  save();
+  render();
+});
+
+gramPrice22Input.addEventListener('input', (e) => {
+  state.gramPrice22 = e.target.value;
   save();
   render();
 });
@@ -387,9 +401,10 @@ generateExportBtn.addEventListener('click', async () => {
   try {
     const payload = JSON.stringify({
       app: 'altin-takip',
-      version: 2,
+      version: 3,
       exportedAt: new Date().toISOString(),
       gramPrice: state.gramPrice,
+      gramPrice22: state.gramPrice22,
       entries: state.entries,
     });
     state.exportOutput = await encryptText(payload, state.exportPassword);
@@ -475,6 +490,7 @@ decryptImportBtn.addEventListener('click', async () => {
   if (!proceed) return;
 
   state.gramPrice = data.gramPrice ?? '';
+  state.gramPrice22 = data.gramPrice22 ?? '';
   state.entries = data.entries;
   state.importOpen = false;
   state.importText = '';

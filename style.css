@@ -220,11 +220,19 @@ button {
 
 /* Price card */
 .price-card {
-  padding: 18px 20px;
+  padding: 0;
+}
+
+.price-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  padding: 18px 20px;
+}
+
+.price-row + .price-row {
+  border-top: 1px solid #EEE8D8;
 }
 
 .price-label {
@@ -258,7 +266,7 @@ button {
   color: #A07C22;
 }
 
-#gramPriceInput {
+.price-input {
   width: 120px;
   background: #F7F3EA;
   border: 1px solid #DDD3BC;
@@ -268,6 +276,7 @@ button {
   font-weight: 700;
   padding: 10px 12px;
   text-align: right;
+  box-sizing: border-box;
 }
 
 /* Entries */
