@@ -54,6 +54,31 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+<!-- Biometric lock -->
+<div id="lockOverlay" class="lock-overlay" hidden>
+  <div class="lock-box">
+    <div class="lock-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="56" height="56">
+        <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/>
+        <path d="M14 13.12c0 2.38 0 6.38-1 8.88"/>
+        <path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/>
+        <path d="M2 12a10 10 0 0 1 18-6"/>
+        <path d="M2 16h.01"/>
+        <path d="M21.8 16c.2-2 .131-5.354 0-6"/>
+        <path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"/>
+        <path d="M8.65 22c.21-.66.45-1.32.57-2"/>
+        <path d="M9 6.8a6 6 0 0 1 9 5.2c0 .47 0 1.17-.02 2"/>
+      </svg>
+    </div>
+    <div class="lock-title">Kilitli</div>
+    <div class="lock-sub">Devam etmek için parmak izinizi doğrulayın</div>
+    <button id="unlockBtn" class="btn-confirm lock-unlock-btn">Parmak İzi ile Aç</button>
+    <div id="lockError" class="error-text" hidden></div>
+    <button id="resetLockBtn" class="btn-link">Parmak izi çalışmıyor mu? Kilidi kaldır</button>
+  </div>
+</div>
+
 <main class="page">
   <div class="container">
 
@@ -65,6 +90,12 @@
       </div>
       <div class="header-actions">
         <button id="installBtn" class="btn-install" hidden>Yükle</button>
+        <button id="openSettingsBtn" class="btn-icon" title="Ayarlar" aria-label="Ayarlar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
         <button id="openAddBtn" class="btn-add">
           <span class="btn-add-icon">+</span> Ekle
         </button>
@@ -120,13 +151,6 @@
         <div id="totalAmount" class="total-amount">₺0</div>
         <div id="totalDiff" class="total-diff" hidden></div>
       </div>
-    </div>
-
-    <!-- Backup / restore -->
-    <div class="data-actions">
-      <button id="exportBtn" class="btn-link">Verileri Dışa Aktar</button>
-      <span class="data-actions-sep">·</span>
-      <button id="importBtn" class="btn-link">Verileri İçe Aktar</button>
     </div>
 
   </div>
@@ -216,6 +240,36 @@
       <div id="importError" class="error-text" hidden></div>
 
       <button id="decryptImportBtn" class="btn-confirm">Çöz ve İçe Aktar</button>
+    </div>
+  </div>
+
+  <!-- Settings sheet -->
+  <div id="settingsOverlay" class="overlay" hidden>
+    <div class="sheet">
+      <div class="sheet-head">
+        <div class="sheet-title">Ayarlar</div>
+        <button id="closeSettingsBtn" class="btn-close">×</button>
+      </div>
+
+      <div id="biometricSettingsGroup" class="field-group" hidden>
+        <div class="field-label">GÜVENLİK</div>
+        <div class="settings-row">
+          <div class="settings-row-text">
+            <div class="settings-row-title">Parmak İzi ile Giriş</div>
+            <div class="settings-row-sub">Uygulamayı açarken parmak izi doğrulaması iste</div>
+          </div>
+          <button id="biometricToggleBtn" class="switch" role="switch" aria-checked="false" aria-label="Parmak İzi ile Giriş">
+            <span class="switch-knob"></span>
+          </button>
+        </div>
+        <div id="settingsLockError" class="error-text" hidden></div>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">VERİ</div>
+        <button id="exportBtn" class="settings-item">Verileri Dışa Aktar</button>
+        <button id="importBtn" class="settings-item">Verileri İçe Aktar</button>
+      </div>
     </div>
   </div>
 

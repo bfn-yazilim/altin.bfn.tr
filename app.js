@@ -50,6 +50,27 @@ function base64ToBytes(base64) {
   return bytes;
 }
 
+// Biometric device lock (WebAuthn platform authenticator, no account/server involved)
+const BIOMETRIC_KEY = 'altin-takip-biometric-v1';
+
+function bufToBase64Url(buf) {
+  return bufToBase64(buf).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function base64UrlToBuf(str) {
+  const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4);
+  return base64ToBytes(padded);
+}
+
+function loadBiometricCredId() {
+  try {
+    return localStorage.getItem(BIOMETRIC_KEY) || '';
+  } catch (e) {
+    return '';
+  }
+}
+
 async function deriveKey(password, salt) {
   const keyMaterial = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, [
     'deriveKey',
@@ -114,6 +135,12 @@ const state = {
   importText: '',
   importPassword: '',
   importError: '',
+  settingsOpen: false,
+  biometricSupported: false,
+  biometricCredId: loadBiometricCredId(),
+  locked: !!loadBiometricCredId(),
+  biometricBusy: false,
+  biometricError: '',
 };
 
 function save() {
@@ -184,6 +211,18 @@ const importTextArea = document.getElementById('importTextArea');
 const importPasswordInput = document.getElementById('importPasswordInput');
 const importErrorEl = document.getElementById('importError');
 const decryptImportBtn = document.getElementById('decryptImportBtn');
+
+const lockOverlay = document.getElementById('lockOverlay');
+const unlockBtn = document.getElementById('unlockBtn');
+const lockErrorEl = document.getElementById('lockError');
+const resetLockBtn = document.getElementById('resetLockBtn');
+
+const openSettingsBtn = document.getElementById('openSettingsBtn');
+const closeSettingsBtn = document.getElementById('closeSettingsBtn');
+const settingsOverlay = document.getElementById('settingsOverlay');
+const biometricSettingsGroup = document.getElementById('biometricSettingsGroup');
+const biometricToggleBtn = document.getElementById('biometricToggleBtn');
+const settingsLockErrorEl = document.getElementById('settingsLockError');
 
 function render() {
   const price24 = num(state.gramPrice);
@@ -443,7 +482,136 @@ function render() {
   importPasswordInput.value = state.importPassword;
   importErrorEl.hidden = !state.importError;
   importErrorEl.textContent = state.importError;
+
+  // Biometric lock
+  lockOverlay.hidden = !state.locked;
+  unlockBtn.disabled = state.biometricBusy;
+  unlockBtn.textContent = state.biometricBusy ? 'Doğrulanıyor…' : 'Parmak İzi ile Aç';
+  lockErrorEl.hidden = !state.biometricError;
+  lockErrorEl.textContent = state.biometricError;
+
+  // Settings sheet
+  settingsOverlay.hidden = !state.settingsOpen;
+  biometricSettingsGroup.hidden = !state.biometricSupported;
+  biometricToggleBtn.classList.toggle('on', !!state.biometricCredId);
+  biometricToggleBtn.setAttribute('aria-checked', String(!!state.biometricCredId));
+  settingsLockErrorEl.hidden = !state.biometricError;
+  settingsLockErrorEl.textContent = state.biometricError;
 }
+
+// Biometric lock: register/verify/disable via WebAuthn platform authenticator.
+// There is no server and no account — the credential is created and checked
+// entirely on-device, purely as a local unlock gate for the app UI.
+async function registerBiometric() {
+  if (!window.PublicKeyCredential) return;
+  state.biometricError = '';
+  try {
+    const credential = await navigator.credentials.create({
+      publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        rp: { name: 'Altın Takip' },
+        user: {
+          id: crypto.getRandomValues(new Uint8Array(16)),
+          name: 'altin-takip',
+          displayName: 'Altın Takip',
+        },
+        pubKeyCredParams: [
+          { type: 'public-key', alg: -7 },
+          { type: 'public-key', alg: -257 },
+        ],
+        authenticatorSelection: {
+          authenticatorAttachment: 'platform',
+          userVerification: 'required',
+        },
+        timeout: 60000,
+        attestation: 'none',
+      },
+    });
+    if (credential) {
+      const credId = bufToBase64Url(credential.rawId);
+      localStorage.setItem(BIOMETRIC_KEY, credId);
+      state.biometricCredId = credId;
+    }
+  } catch (e) {
+    state.biometricError = 'Parmak izi kaydı oluşturulamadı.';
+  }
+  render();
+}
+
+function disableBiometric() {
+  try {
+    localStorage.removeItem(BIOMETRIC_KEY);
+  } catch (e) {
+    /* ignore storage errors */
+  }
+  state.biometricCredId = '';
+  state.locked = false;
+  state.biometricError = '';
+  render();
+}
+
+async function verifyBiometric() {
+  if (!state.biometricCredId) {
+    state.locked = false;
+    render();
+    return;
+  }
+  state.biometricBusy = true;
+  state.biometricError = '';
+  render();
+  try {
+    const assertion = await navigator.credentials.get({
+      publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials: [{ id: base64UrlToBuf(state.biometricCredId), type: 'public-key' }],
+        userVerification: 'required',
+        timeout: 60000,
+      },
+    });
+    state.locked = !assertion;
+    if (!assertion) state.biometricError = 'Doğrulama başarısız oldu.';
+  } catch (e) {
+    state.biometricError = 'Parmak izi doğrulanamadı. Tekrar deneyin.';
+  }
+  state.biometricBusy = false;
+  render();
+}
+
+unlockBtn.addEventListener('click', verifyBiometric);
+
+resetLockBtn.addEventListener('click', () => {
+  const proceed = confirm('Parmak izi kilidi kaldırılacak, verileriniz silinmeyecek. Devam edilsin mi?');
+  if (!proceed) return;
+  disableBiometric();
+});
+
+biometricToggleBtn.addEventListener('click', async () => {
+  if (state.biometricCredId) {
+    const proceed = confirm('Parmak izi kilidini kapatmak istiyor musunuz?');
+    if (!proceed) return;
+    disableBiometric();
+  } else {
+    await registerBiometric();
+  }
+});
+
+openSettingsBtn.addEventListener('click', () => {
+  state.settingsOpen = true;
+  state.biometricError = '';
+  render();
+});
+
+closeSettingsBtn.addEventListener('click', () => {
+  state.settingsOpen = false;
+  render();
+});
+
+settingsOverlay.addEventListener('click', (e) => {
+  if (e.target === settingsOverlay) {
+    state.settingsOpen = false;
+    render();
+  }
+});
 
 // Event bindings
 gramPriceInput.addEventListener('input', (e) => {
@@ -508,6 +676,7 @@ confirmAddBtn.addEventListener('click', () => {
 
 // Backup / restore
 exportBtn.addEventListener('click', () => {
+  state.settingsOpen = false;
   state.exportOpen = true;
   state.exportPassword = '';
   state.exportOutput = '';
@@ -571,6 +740,7 @@ copyExportBtn.addEventListener('click', async () => {
 });
 
 importBtn.addEventListener('click', () => {
+  state.settingsOpen = false;
   state.importOpen = true;
   state.importText = '';
   state.importPassword = '';
@@ -644,6 +814,19 @@ decryptImportBtn.addEventListener('click', async () => {
 
 render();
 fetchDailyPrices();
+
+if (state.locked) {
+  verifyBiometric();
+}
+
+if (window.PublicKeyCredential && PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
+  PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+    .then((available) => {
+      state.biometricSupported = available;
+      render();
+    })
+    .catch(() => {});
+}
 
 // PWA: offline caching
 if ('serviceWorker' in navigator) {

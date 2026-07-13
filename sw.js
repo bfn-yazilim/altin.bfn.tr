@@ -1,4 +1,4 @@
-const CACHE_NAME = 'altin-takip-v1';
+const CACHE_NAME = 'altin-takip-v3';
 const STATIC_ASSETS = [
   './',
   './index.html',
